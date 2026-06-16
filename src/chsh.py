@@ -11,13 +11,14 @@ For |Phi+>, this gives E(theta_a, theta_b) = cos(2(theta_a - theta_b)).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import cos, radians, sqrt
+from math import radians, sqrt
 from typing import Dict, Iterable, Mapping
 
 import numpy as np
 
 
 OUTCOMES = ("++", "+-", "-+", "--")
+BELL_STATE_NAMES = ("phi_plus", "phi_minus", "psi_plus", "psi_minus")
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,7 @@ class MeasurementResult:
 
 @dataclass(frozen=True)
 class ChshResult:
+    bell_state: str
     shots: int
     seed: int | None
     measurements: tuple[MeasurementResult, ...]
@@ -53,18 +55,18 @@ class ChshResult:
         return abs(self.s_sim) > 2.0
 
 
-def ket_zero_zero() -> np.ndarray:
-    return np.array([1.0, 0.0, 0.0, 0.0], dtype=complex)
+def prepare_bell_state(name: str) -> np.ndarray:
+    """Prepare one of the four Bell states from |00> using simple gates."""
+    if name not in BELL_STATE_NAMES:
+        raise ValueError(
+            f"Unknown Bell state {name!r}. Choose one of {BELL_STATE_NAMES}."
+        )
 
-
-def kron(left: np.ndarray, right: np.ndarray) -> np.ndarray:
-    return np.kron(left, right)
-
-
-def bell_phi_plus_via_circuit() -> np.ndarray:
-    """Prepare |Phi+> from |00> using H on qubit A and CNOT(A -> B)."""
+    zero_zero = np.array([1.0, 0.0, 0.0, 0.0], dtype=complex)
     identity = np.eye(2, dtype=complex)
     hadamard = np.array([[1.0, 1.0], [1.0, -1.0]], dtype=complex) / sqrt(2.0)
+    pauli_x = np.array([[0.0, 1.0], [1.0, 0.0]], dtype=complex)
+    pauli_z = np.array([[1.0, 0.0], [0.0, -1.0]], dtype=complex)
     cnot = np.array(
         [
             [1.0, 0.0, 0.0, 0.0],
@@ -74,24 +76,21 @@ def bell_phi_plus_via_circuit() -> np.ndarray:
         ],
         dtype=complex,
     )
-    return cnot @ kron(hadamard, identity) @ ket_zero_zero()
 
-
-def bell_phi_plus_direct() -> np.ndarray:
-    return np.array([1.0, 0.0, 0.0, 1.0], dtype=complex) / sqrt(2.0)
+    phi_plus = cnot @ np.kron(hadamard, identity) @ zero_zero
+    if name == "phi_plus":
+        return phi_plus
+    if name == "phi_minus":
+        return np.kron(identity, pauli_z) @ phi_plus
+    if name == "psi_plus":
+        return np.kron(identity, pauli_x) @ phi_plus
+    return np.kron(identity, pauli_x @ pauli_z) @ phi_plus
 
 
 def assert_normalized(state: np.ndarray, tolerance: float = 1e-10) -> None:
     norm = float(np.vdot(state, state).real)
     if abs(norm - 1.0) > tolerance:
         raise ValueError(f"State is not normalized: norm={norm:.12f}")
-
-
-def assert_phi_plus_preparation(tolerance: float = 1e-10) -> None:
-    prepared = bell_phi_plus_via_circuit()
-    direct = bell_phi_plus_direct()
-    if not np.allclose(prepared, direct, atol=tolerance):
-        raise ValueError("H + CNOT preparation did not match direct |Phi+> state.")
 
 
 def polarization_basis(theta_rad: float) -> tuple[np.ndarray, np.ndarray]:
@@ -115,10 +114,10 @@ def joint_probabilities(
     plus_b, minus_b = polarization_basis(theta_b)
 
     projectors = {
-        "++": kron(plus_a, plus_b),
-        "+-": kron(plus_a, minus_b),
-        "-+": kron(minus_a, plus_b),
-        "--": kron(minus_a, minus_b),
+        "++": np.kron(plus_a, plus_b),
+        "+-": np.kron(plus_a, minus_b),
+        "-+": np.kron(minus_a, plus_b),
+        "--": np.kron(minus_a, minus_b),
     }
     probabilities = {
         outcome: float(abs(np.vdot(projector, state)) ** 2)
@@ -131,10 +130,6 @@ def joint_probabilities(
             f"({theta_a_deg}, {theta_b_deg}): total={total:.12f}"
         )
     return {key: value / total for key, value in probabilities.items()}
-
-
-def theory_expectation(theta_a_deg: float, theta_b_deg: float) -> float:
-    return cos(2.0 * radians(theta_a_deg - theta_b_deg))
 
 
 def expectation_from_distribution(distribution: Mapping[str, float | int]) -> float:
@@ -177,7 +172,7 @@ def measure_pair(
         probabilities=probabilities,
         counts=counts,
         e_sim=expectation_from_distribution(counts),
-        e_theory=theory_expectation(theta_a_deg, theta_b_deg),
+        e_theory=expectation_from_distribution(probabilities),
     )
 
 
@@ -189,16 +184,16 @@ def run_chsh(
     shots: int,
     seed: int | None = 42,
     angles: Mapping[str, float] | None = None,
+    bell: str = "phi_plus",
 ) -> ChshResult:
-    """Run the default |Phi+> CHSH experiment."""
-    assert_phi_plus_preparation()
+    """Run the default CHSH experiment for a selected Bell state."""
     selected_angles = dict(default_chsh_angles() if angles is None else angles)
     required = {"a", "ap", "b", "bp"}
     missing = required.difference(selected_angles)
     if missing:
         raise ValueError(f"Missing CHSH angle labels: {sorted(missing)}")
 
-    state = bell_phi_plus_via_circuit()
+    state = prepare_bell_state(bell)
     rng = np.random.default_rng(seed)
     pairs = (
         ("a_b", selected_angles["a"], selected_angles["b"]),
@@ -222,6 +217,7 @@ def run_chsh(
         - by_pair_theory["ap_bp"]
     )
     return ChshResult(
+        bell_state=bell,
         shots=shots,
         seed=seed,
         measurements=measurements,
@@ -233,6 +229,7 @@ def run_chsh(
 def run_convergence(
     shot_values: Iterable[int],
     seed: int | None = 42,
+    bell: str = "phi_plus",
 ) -> tuple[ChshResult, ...]:
     """Run CHSH experiments for multiple shot counts with deterministic seeds."""
     shot_values = tuple(shot_values)
@@ -241,5 +238,5 @@ def run_convergence(
     results = []
     for shots, child_sequence in zip(shot_values, child_sequences):
         child_seed = int(child_sequence.generate_state(1)[0])
-        results.append(run_chsh(shots=shots, seed=child_seed))
+        results.append(run_chsh(shots=shots, seed=child_seed, bell=bell))
     return tuple(results)

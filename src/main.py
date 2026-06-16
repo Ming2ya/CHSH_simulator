@@ -4,22 +4,15 @@ from __future__ import annotations
 
 import argparse
 import csv
-import os
-import tempfile
 from math import sqrt
 from pathlib import Path
 
-os.environ.setdefault(
-    "MPLCONFIGDIR",
-    str(Path(tempfile.gettempdir()) / "chsh_matplotlib"),
+from src.chsh import (
+    BELL_STATE_NAMES,
+    ChshResult,
+    run_chsh,
+    run_convergence,
 )
-
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-
-from src.chsh import ChshResult, run_chsh, run_convergence
 
 
 DEFAULT_CONVERGENCE_SHOTS = (100, 500, 1000, 5000, 10000, 50000)
@@ -47,6 +40,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--shots", type=int, default=10000)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
+        "--bell",
+        default="phi_plus",
+        choices=BELL_STATE_NAMES,
+        help="Bell state to simulate.",
+    )
+    parser.add_argument(
         "--convergence-shots",
         type=parse_shot_list,
         default=DEFAULT_CONVERGENCE_SHOTS,
@@ -62,7 +61,7 @@ def ensure_output_dirs() -> None:
 
 
 def print_result(result: ChshResult) -> None:
-    print("Bell state: Phi+")
+    print(f"Bell state: {result.bell_state}")
     print("Measurement convention: polarization basis")
     print(f"Shots: {result.shots}")
     print(f"Seed: {result.seed}")
@@ -87,10 +86,11 @@ def print_result(result: ChshResult) -> None:
 
 def write_summary_csv(result: ChshResult, path: Path) -> None:
     with path.open("w", newline="", encoding="utf-8") as csv_file:
-        writer = csv.writer(csv_file)
+        writer = csv.writer(csv_file, lineterminator="\n")
         writer.writerow(
             [
                 "pair",
+                "bell_state",
                 "theta_a_deg",
                 "theta_b_deg",
                 "shots",
@@ -107,6 +107,7 @@ def write_summary_csv(result: ChshResult, path: Path) -> None:
             writer.writerow(
                 [
                     measurement.pair,
+                    result.bell_state,
                     measurement.theta_a_deg,
                     measurement.theta_b_deg,
                     measurement.shots,
@@ -122,6 +123,7 @@ def write_summary_csv(result: ChshResult, path: Path) -> None:
         writer.writerow(
             [
                 "S",
+                result.bell_state,
                 "",
                 "",
                 result.shots,
@@ -138,11 +140,12 @@ def write_summary_csv(result: ChshResult, path: Path) -> None:
 
 def write_convergence_csv(results: tuple[ChshResult, ...], path: Path) -> None:
     with path.open("w", newline="", encoding="utf-8") as csv_file:
-        writer = csv.writer(csv_file)
-        writer.writerow(["shots", "seed", "s_sim", "s_theory", "error"])
+        writer = csv.writer(csv_file, lineterminator="\n")
+        writer.writerow(["bell_state", "shots", "seed", "s_sim", "s_theory", "error"])
         for result in results:
             writer.writerow(
                 [
+                    result.bell_state,
                     result.shots,
                     result.seed,
                     f"{result.s_sim:.10f}",
@@ -153,6 +156,11 @@ def write_convergence_csv(results: tuple[ChshResult, ...], path: Path) -> None:
 
 
 def plot_convergence(results: tuple[ChshResult, ...], path: Path) -> None:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
     shots = [result.shots for result in results]
     s_values = [result.s_sim for result in results]
     theory = 2 * sqrt(2)
@@ -169,7 +177,8 @@ def plot_convergence(results: tuple[ChshResult, ...], path: Path) -> None:
     plt.xscale("log")
     plt.xlabel("Shots")
     plt.ylabel("CHSH S")
-    plt.title("CHSH convergence for |Phi+>")
+    bell_state = results[0].bell_state if results else "unknown"
+    plt.title(f"CHSH convergence for {bell_state}")
     plt.grid(True, which="both", alpha=0.3)
     plt.legend()
     plt.tight_layout()
@@ -185,11 +194,15 @@ def main() -> int:
 
     ensure_output_dirs()
 
-    result = run_chsh(shots=args.shots, seed=args.seed)
+    result = run_chsh(shots=args.shots, seed=args.seed, bell=args.bell)
     print_result(result)
     write_summary_csv(result, Path("results/chsh_mvp_summary.csv"))
 
-    convergence_results = run_convergence(args.convergence_shots, seed=args.seed)
+    convergence_results = run_convergence(
+        args.convergence_shots,
+        seed=args.seed,
+        bell=args.bell,
+    )
     write_convergence_csv(
         convergence_results,
         Path("results/chsh_mvp_convergence.csv"),
