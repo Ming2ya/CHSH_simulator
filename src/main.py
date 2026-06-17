@@ -8,8 +8,10 @@ from math import sqrt
 from pathlib import Path
 
 from src.chsh import (
+    AngleScanResult,
     BELL_STATE_NAMES,
     ChshResult,
+    run_angle_scan,
     run_chsh,
     run_convergence,
 )
@@ -50,6 +52,20 @@ def build_parser() -> argparse.ArgumentParser:
         type=parse_shot_list,
         default=DEFAULT_CONVERGENCE_SHOTS,
         help="Comma-separated shot counts for the convergence plot.",
+    )
+    parser.add_argument(
+        "--angle-scan",
+        action="store_true",
+        help="Also scan b=theta, b'=-theta and save an angle scan figure.",
+    )
+    parser.add_argument("--scan-start", type=float, default=0.0)
+    parser.add_argument("--scan-stop", type=float, default=45.0)
+    parser.add_argument("--scan-points", type=int, default=91)
+    parser.add_argument(
+        "--scan-shots",
+        type=int,
+        default=None,
+        help="Shots per angle-scan point. Defaults to --shots.",
     )
     parser.add_argument("--no-plot", action="store_true")
     return parser
@@ -155,6 +171,27 @@ def write_convergence_csv(results: tuple[ChshResult, ...], path: Path) -> None:
             )
 
 
+def write_angle_scan_csv(results: tuple[AngleScanResult, ...], path: Path) -> None:
+    with path.open("w", newline="", encoding="utf-8") as csv_file:
+        writer = csv.writer(csv_file, lineterminator="\n")
+        writer.writerow(
+            ["bell_state", "theta_deg", "shots", "seed", "s_sim", "s_theory", "error"]
+        )
+        for scan_result in results:
+            result = scan_result.result
+            writer.writerow(
+                [
+                    result.bell_state,
+                    f"{scan_result.theta_deg:.10f}",
+                    result.shots,
+                    result.seed,
+                    f"{result.s_sim:.10f}",
+                    f"{result.s_theory:.10f}",
+                    f"{result.error:.10f}",
+                ]
+            )
+
+
 def plot_convergence(results: tuple[ChshResult, ...], path: Path) -> None:
     import matplotlib
 
@@ -186,11 +223,56 @@ def plot_convergence(results: tuple[ChshResult, ...], path: Path) -> None:
     plt.close()
 
 
+def plot_angle_scan(results: tuple[AngleScanResult, ...], path: Path) -> None:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    theta_values = [result.theta_deg for result in results]
+    s_sim = [result.s_sim for result in results]
+    s_theory = [result.s_theory for result in results]
+    bell_state = results[0].result.bell_state if results else "unknown"
+    theory_bound = 2 * sqrt(2)
+    optimal_theta = -22.5 if bell_state in {"phi_minus", "psi_plus"} else 22.5
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(theta_values, s_theory, label="Theory S", color="tab:blue")
+    plt.scatter(theta_values, s_sim, s=14, alpha=0.7, label="Monte Carlo S")
+    plt.axhline(2.0, color="tab:red", linestyle="--", label="Classical bounds")
+    plt.axhline(-2.0, color="tab:red", linestyle="--")
+    plt.axhline(
+        theory_bound,
+        color="tab:green",
+        linestyle=":",
+        label=r"Quantum bounds",
+    )
+    plt.axhline(-theory_bound, color="tab:green", linestyle=":")
+    plt.axvline(
+        optimal_theta,
+        color="tab:gray",
+        linestyle="--",
+        label=f"optimal theta = {optimal_theta:g} deg",
+    )
+    plt.xlabel("theta (deg), with b=theta and b'=-theta")
+    plt.ylabel("CHSH S")
+    plt.title(f"CHSH angle scan for {bell_state}")
+    plt.grid(True, alpha=0.3)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(path, dpi=180)
+    plt.close()
+
+
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
     if args.shots <= 0:
         parser.error("--shots must be a positive integer.")
+    if args.scan_points < 2:
+        parser.error("--scan-points must be at least 2.")
+    if args.scan_shots is not None and args.scan_shots <= 0:
+        parser.error("--scan-shots must be a positive integer.")
 
     ensure_output_dirs()
 
@@ -212,6 +294,19 @@ def main() -> int:
             convergence_results,
             Path("figures/chsh_mvp_convergence.png"),
         )
+
+    if args.angle_scan:
+        scan_results = run_angle_scan(
+            start_deg=args.scan_start,
+            stop_deg=args.scan_stop,
+            points=args.scan_points,
+            shots=args.scan_shots or args.shots,
+            seed=args.seed,
+            bell=args.bell,
+        )
+        write_angle_scan_csv(scan_results, Path("results/chsh_angle_scan.csv"))
+        if not args.no_plot:
+            plot_angle_scan(scan_results, Path("figures/chsh_angle_scan.png"))
 
     return 0
 

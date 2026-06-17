@@ -55,6 +55,20 @@ class ChshResult:
         return abs(self.s_sim) > 2.0
 
 
+@dataclass(frozen=True)
+class AngleScanResult:
+    theta_deg: float
+    result: ChshResult
+
+    @property
+    def s_sim(self) -> float:
+        return self.result.s_sim
+
+    @property
+    def s_theory(self) -> float:
+        return self.result.s_theory
+
+
 def prepare_bell_state(name: str) -> np.ndarray:
     """Prepare one of the four Bell states from |00> using simple gates."""
     if name not in BELL_STATE_NAMES:
@@ -239,4 +253,32 @@ def run_convergence(
     for shots, child_sequence in zip(shot_values, child_sequences):
         child_seed = int(child_sequence.generate_state(1)[0])
         results.append(run_chsh(shots=shots, seed=child_seed, bell=bell))
+    return tuple(results)
+
+
+def run_angle_scan(
+    start_deg: float = 0.0,
+    stop_deg: float = 45.0,
+    points: int = 91,
+    shots: int = 5000,
+    seed: int | None = 42,
+    bell: str = "phi_plus",
+) -> tuple[AngleScanResult, ...]:
+    """Scan CHSH with a=0, a'=45, b=theta, b'=-theta."""
+    if points < 2:
+        raise ValueError("angle scan needs at least two points.")
+    theta_values = np.linspace(start_deg, stop_deg, points)
+    seed_sequence = np.random.SeedSequence(seed)
+    child_sequences = seed_sequence.spawn(points)
+
+    results = []
+    for theta, child_sequence in zip(theta_values, child_sequences):
+        child_seed = int(child_sequence.generate_state(1)[0])
+        chsh_result = run_chsh(
+            shots=shots,
+            seed=child_seed,
+            bell=bell,
+            angles={"a": 0.0, "ap": 45.0, "b": float(theta), "bp": -float(theta)},
+        )
+        results.append(AngleScanResult(theta_deg=float(theta), result=chsh_result))
     return tuple(results)

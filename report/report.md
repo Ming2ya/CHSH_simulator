@@ -119,13 +119,44 @@ S_theory = 2.828427
 
 这个结果说明，四个 Bell 态都具有纠缠关联，但同一组 CHSH 测量角并不会对所有 Bell 态给出同样的 `S`。默认角度是围绕 `phi_plus` 的关联函数设置的，因此 `phi_plus` 接近 `+2sqrt(2)`；`psi_minus` 的相关性整体反号，因此得到接近 `-2sqrt(2)`，其绝对值同样违反经典界限。`phi_minus` 和 `psi_plus` 在这组角度下得到接近 0 的 `S`，并不表示它们不是纠缠态，而是说明当前四个测量设置没有对准它们的最优违背方向。
 
+### 四个 Bell 态的角度扫描实验
+
+为了展示测量角选择对 CHSH 违背的影响，程序还实现了角度扫描实验。扫描时固定
+
+```text
+a = 0 deg
+a' = 45 deg
+b = theta
+b' = -theta
+```
+
+并令 `theta` 从 `-45 deg` 扫描到 `45 deg`。以 `phi_plus` 为例，运行命令为：
+
+```bash
+python -m src.main --shots 10000 --seed 42 --bell phi_plus --angle-scan --scan-start -45 --scan-stop 45 --scan-points 181 --scan-shots 5000
+```
+
+分别对四个 Bell 态运行该扫描后，可得到以下图像：
+
+![phi_plus angle scan](../figures/phi_plus_angle_scan.png)
+
+![phi_minus angle scan](../figures/phi_minus_angle_scan.png)
+
+![psi_plus angle scan](../figures/psi_plus_angle_scan.png)
+
+![psi_minus angle scan](../figures/psi_minus_angle_scan.png)
+
+扫描结果显示，不同 Bell 态的最优角度方向不同。`phi_plus` 在 `theta = +22.5 deg` 处达到 `+2sqrt(2)`，`psi_minus` 在同一角度处达到 `-2sqrt(2)`；而 `phi_minus` 和 `psi_plus` 的最优违背方向位于 `theta = -22.5 deg`，分别对应 `+2sqrt(2)` 和 `-2sqrt(2)`。因此，前面默认角度下 `phi_minus` 与 `psi_plus` 的 `S≈0` 并不是因为它们没有纠缠，而是因为默认测量基没有对准它们的最优 CHSH 违背方向。
+
+图中的 Monte Carlo 点围绕理论曲线涨落，体现了有限 shots 带来的统计误差。随着 shots 增加，散点会进一步贴近理论曲线。
+
 收敛图保存在：
 
 ```text
 figures/chsh_mvp_convergence.png
 ```
 
-![CHSH convergence](figures/chsh_mvp_convergence.png)
+![CHSH convergence](../figures/chsh_mvp_convergence.png)
 
 该图以 shots 为横轴，以 CHSH 参数 `S` 为纵轴，同时标出经典极限 `2` 和量子理论值 `2sqrt(2)`。
 
@@ -137,4 +168,4 @@ figures/chsh_mvp_convergence.png
 
 ## 结论
 
-MVP 阶段已经完成 Bell 态制备、偏振基测量、Monte Carlo shots 抽样、关联期望值统计和 CHSH 参数计算。默认实验应能得到 `S > 2` 的结果，并随 shots 增大逐步接近 `2sqrt(2)`。后续可以在此基础上继续加入四个 Bell 态比较、visibility 噪声模型、约化密度矩阵与 von Neumann 熵分析。
+当前阶段已经完成 Bell 态制备、偏振基测量、Monte Carlo shots 抽样、关联期望值统计、四个 Bell 态比较和角度扫描实验。默认 `phi_plus` 实验得到 `S > 2`，并随 shots 增大逐步接近 `2sqrt(2)`；角度扫描进一步说明，CHSH 违背依赖 Bell 态和测量基之间的匹配关系。后续可以在此基础上继续加入 visibility 噪声模型、约化密度矩阵与 von Neumann 熵分析。
