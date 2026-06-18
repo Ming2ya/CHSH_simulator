@@ -14,6 +14,7 @@ from src.chsh import (
     run_angle_scan,
     run_chsh,
     run_convergence,
+    run_noise_scan,
 )
 
 
@@ -48,6 +49,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Bell state to simulate.",
     )
     parser.add_argument(
+        "--visibility",
+        type=float,
+        default=1.0,
+        help="Visibility of the Bell state before measurement.",
+    )
+    parser.add_argument(
         "--convergence-shots",
         type=parse_shot_list,
         default=DEFAULT_CONVERGENCE_SHOTS,
@@ -67,6 +74,20 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Shots per angle-scan point. Defaults to --shots.",
     )
+    parser.add_argument(
+        "--noise-scan",
+        action="store_true",
+        help="Also scan visibility noise and save a noise figure.",
+    )
+    parser.add_argument("--noise-start", type=float, default=0.0)
+    parser.add_argument("--noise-stop", type=float, default=1.0)
+    parser.add_argument("--noise-points", type=int, default=101)
+    parser.add_argument(
+        "--noise-shots",
+        type=int,
+        default=None,
+        help="Shots per noise-scan point. Defaults to --shots.",
+    )
     parser.add_argument("--no-plot", action="store_true")
     return parser
 
@@ -78,6 +99,7 @@ def ensure_output_dirs() -> None:
 
 def print_result(result: ChshResult) -> None:
     print(f"Bell state: {result.bell_state}")
+    print(f"Visibility: {result.visibility}")
     print("Measurement convention: polarization basis")
     print(f"Shots: {result.shots}")
     print(f"Seed: {result.seed}")
@@ -107,6 +129,7 @@ def write_summary_csv(result: ChshResult, path: Path) -> None:
             [
                 "pair",
                 "bell_state",
+                "visibility",
                 "theta_a_deg",
                 "theta_b_deg",
                 "shots",
@@ -124,6 +147,7 @@ def write_summary_csv(result: ChshResult, path: Path) -> None:
                 [
                     measurement.pair,
                     result.bell_state,
+                    result.visibility,
                     measurement.theta_a_deg,
                     measurement.theta_b_deg,
                     measurement.shots,
@@ -140,6 +164,7 @@ def write_summary_csv(result: ChshResult, path: Path) -> None:
             [
                 "S",
                 result.bell_state,
+                result.visibility,
                 "",
                 "",
                 result.shots,
@@ -157,11 +182,14 @@ def write_summary_csv(result: ChshResult, path: Path) -> None:
 def write_convergence_csv(results: tuple[ChshResult, ...], path: Path) -> None:
     with path.open("w", newline="", encoding="utf-8") as csv_file:
         writer = csv.writer(csv_file, lineterminator="\n")
-        writer.writerow(["bell_state", "shots", "seed", "s_sim", "s_theory", "error"])
+        writer.writerow(
+            ["bell_state", "visibility", "shots", "seed", "s_sim", "s_theory", "error"]
+        )
         for result in results:
             writer.writerow(
                 [
                     result.bell_state,
+                    result.visibility,
                     result.shots,
                     result.seed,
                     f"{result.s_sim:.10f}",
@@ -175,14 +203,44 @@ def write_angle_scan_csv(results: tuple[AngleScanResult, ...], path: Path) -> No
     with path.open("w", newline="", encoding="utf-8") as csv_file:
         writer = csv.writer(csv_file, lineterminator="\n")
         writer.writerow(
-            ["bell_state", "theta_deg", "shots", "seed", "s_sim", "s_theory", "error"]
+            [
+                "bell_state",
+                "visibility",
+                "theta_deg",
+                "shots",
+                "seed",
+                "s_sim",
+                "s_theory",
+                "error",
+            ]
         )
         for scan_result in results:
             result = scan_result.result
             writer.writerow(
                 [
                     result.bell_state,
+                    result.visibility,
                     f"{scan_result.theta_deg:.10f}",
+                    result.shots,
+                    result.seed,
+                    f"{result.s_sim:.10f}",
+                    f"{result.s_theory:.10f}",
+                    f"{result.error:.10f}",
+                ]
+            )
+
+
+def write_noise_scan_csv(results: tuple[ChshResult, ...], path: Path) -> None:
+    with path.open("w", newline="", encoding="utf-8") as csv_file:
+        writer = csv.writer(csv_file, lineterminator="\n")
+        writer.writerow(
+            ["bell_state", "visibility", "shots", "seed", "s_sim", "s_theory", "error"]
+        )
+        for result in results:
+            writer.writerow(
+                [
+                    result.bell_state,
+                    f"{result.visibility:.10f}",
                     result.shots,
                     result.seed,
                     f"{result.s_sim:.10f}",
@@ -264,19 +322,62 @@ def plot_angle_scan(results: tuple[AngleScanResult, ...], path: Path) -> None:
     plt.close()
 
 
+def plot_noise_scan(results: tuple[ChshResult, ...], path: Path) -> None:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    visibility_values = [result.visibility for result in results]
+    s_sim = [result.s_sim for result in results]
+    s_theory = [result.s_theory for result in results]
+    bell_state = results[0].bell_state if results else "unknown"
+    threshold = 1 / sqrt(2)
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(visibility_values, s_theory, label="Theory S", color="tab:blue")
+    plt.scatter(visibility_values, s_sim, s=14, alpha=0.7, label="Monte Carlo S")
+    plt.axhline(2.0, color="tab:red", linestyle="--", label="Classical bound = 2")
+    plt.axvline(
+        threshold,
+        color="tab:gray",
+        linestyle="--",
+        label=r"$v = 1/\sqrt{2}$",
+    )
+    plt.xlabel("visibility v")
+    plt.ylabel("CHSH S")
+    plt.title(f"CHSH noise scan for {bell_state}")
+    plt.grid(True, alpha=0.3)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(path, dpi=180)
+    plt.close()
+
+
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
     if args.shots <= 0:
         parser.error("--shots must be a positive integer.")
+    if not 0.0 <= args.visibility <= 1.0:
+        parser.error("--visibility must be between 0 and 1.")
     if args.scan_points < 2:
         parser.error("--scan-points must be at least 2.")
     if args.scan_shots is not None and args.scan_shots <= 0:
         parser.error("--scan-shots must be a positive integer.")
+    if args.noise_points < 2:
+        parser.error("--noise-points must be at least 2.")
+    if args.noise_shots is not None and args.noise_shots <= 0:
+        parser.error("--noise-shots must be a positive integer.")
 
     ensure_output_dirs()
 
-    result = run_chsh(shots=args.shots, seed=args.seed, bell=args.bell)
+    result = run_chsh(
+        shots=args.shots,
+        seed=args.seed,
+        bell=args.bell,
+        visibility=args.visibility,
+    )
     print_result(result)
     write_summary_csv(result, Path("results/chsh_mvp_summary.csv"))
 
@@ -284,6 +385,7 @@ def main() -> int:
         args.convergence_shots,
         seed=args.seed,
         bell=args.bell,
+        visibility=args.visibility,
     )
     write_convergence_csv(
         convergence_results,
@@ -303,10 +405,24 @@ def main() -> int:
             shots=args.scan_shots or args.shots,
             seed=args.seed,
             bell=args.bell,
+            visibility=args.visibility,
         )
         write_angle_scan_csv(scan_results, Path("results/chsh_angle_scan.csv"))
         if not args.no_plot:
             plot_angle_scan(scan_results, Path("figures/chsh_angle_scan.png"))
+
+    if args.noise_scan:
+        noise_results = run_noise_scan(
+            start=args.noise_start,
+            stop=args.noise_stop,
+            points=args.noise_points,
+            shots=args.noise_shots or args.shots,
+            seed=args.seed,
+            bell=args.bell,
+        )
+        write_noise_scan_csv(noise_results, Path("results/chsh_noise_scan.csv"))
+        if not args.no_plot:
+            plot_noise_scan(noise_results, Path("figures/chsh_noise_scan.png"))
 
     return 0
 

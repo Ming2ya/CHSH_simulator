@@ -52,16 +52,30 @@ S = 2sqrt(2) ≈ 2.828427
 
 在四个 Bell 态比较中，程序仍以该制备过程为基础：先得到 `|Phi+>`，再在第二个量子比特上施加简单的局部门得到其他 Bell 态。`phi_minus` 对应施加 `Z`，`psi_plus` 对应施加 `X`，`psi_minus` 对应施加 `XZ`。这样既保留了 Bell 态制备过程，也便于比较不同 Bell 态的关联结构。
 
-对于每一组测量角，程序计算四种联合测量结果的概率：
+对于每一组测量角，程序计算四种联合测量结果的概率。理想纯态先写成密度矩阵
+
+```text
+rho = |psi><psi|
+```
+
+测量概率由密度矩阵投影给出：
+
+```text
+P(s,t) = <s_thetaA, t_thetaB| rho |s_thetaA, t_thetaB>
+```
+
+当考虑 visibility 噪声时，程序在 Bell 态制备之后、测量之前加入白噪声混合：
+
+```text
+rho_v = v rho + (1-v) I/4
+```
+
+其中 `v` 为 visibility。`v = 1` 表示理想 Bell 态，`v = 0` 表示完全混合态。
+
+对于每组角度，程序得到四种联合结果概率：
 
 ```text
 P(++), P(+-), P(-+), P(--)
-```
-
-概率由投影振幅给出：
-
-```text
-P(s,t) = |(<s_thetaA| tensor <t_thetaB|) |Phi+>|^2
 ```
 
 随后程序按该概率分布进行 `shots` 次 Monte Carlo 抽样。关联期望值由计数得到：
@@ -150,6 +164,43 @@ python -m src.main --shots 10000 --seed 42 --bell phi_plus --angle-scan --scan-s
 
 图中的 Monte Carlo 点围绕理论曲线涨落，体现了有限 shots 带来的统计误差。随着 shots 增加，散点会进一步贴近理论曲线。
 
+### 噪声对 CHSH 违背的影响
+
+为了模拟现实系统中的退相干、损耗或混合态污染，程序加入 visibility 噪声模型：
+
+```text
+rho_v = v |Phi+><Phi+| + (1-v) I/4
+```
+
+完全混合态 `I/4` 不贡献关联期望值，因此在最优角度下理论上有：
+
+```text
+S(v) = 2sqrt(2) v
+```
+
+CHSH 违背条件为 `S(v) > 2`，因此阈值为：
+
+```text
+v > 1/sqrt(2) ≈ 0.707
+```
+
+运行命令为：
+
+```bash
+python -m src.main --shots 10000 --seed 42 --bell phi_plus --noise-scan --noise-points 101 --noise-shots 5000
+```
+
+该实验生成：
+
+```text
+results/chsh_noise_scan.csv
+figures/chsh_noise_scan.png
+```
+
+![CHSH noise scan](../figures/chsh_noise_scan.png)
+
+结果显示，随着 visibility 从 1 降低到 0，CHSH 参数近似线性下降。当 `v` 高于 `1/sqrt(2)` 时，理论曲线位于经典上界 2 之上，仍然违反 CHSH 不等式；当 `v` 低于该阈值时，噪声已经足以破坏可观测到的 CHSH 违背。Monte Carlo 点围绕理论线波动，反映有限 shots 的统计误差。
+
 收敛图保存在：
 
 ```text
@@ -168,4 +219,4 @@ figures/chsh_mvp_convergence.png
 
 ## 结论
 
-当前阶段已经完成 Bell 态制备、偏振基测量、Monte Carlo shots 抽样、关联期望值统计、四个 Bell 态比较和角度扫描实验。默认 `phi_plus` 实验得到 `S > 2`，并随 shots 增大逐步接近 `2sqrt(2)`；角度扫描进一步说明，CHSH 违背依赖 Bell 态和测量基之间的匹配关系。后续可以在此基础上继续加入 visibility 噪声模型、约化密度矩阵与 von Neumann 熵分析。
+当前阶段已经完成 Bell 态制备、偏振基测量、Monte Carlo shots 抽样、关联期望值统计、四个 Bell 态比较、角度扫描实验和 visibility 噪声分析。默认 `phi_plus` 实验得到 `S > 2`，并随 shots 增大逐步接近 `2sqrt(2)`；角度扫描说明 CHSH 违背依赖 Bell 态和测量基之间的匹配关系；噪声扫描进一步说明，当 visibility 低于 `1/sqrt(2)` 时，噪声会使 CHSH 违背消失。后续可以在此基础上继续加入约化密度矩阵与 von Neumann 熵分析。

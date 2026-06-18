@@ -40,6 +40,7 @@ class MeasurementResult:
 @dataclass(frozen=True)
 class ChshResult:
     bell_state: str
+    visibility: float
     shots: int
     seed: int | None
     measurements: tuple[MeasurementResult, ...]
@@ -107,6 +108,17 @@ def assert_normalized(state: np.ndarray, tolerance: float = 1e-10) -> None:
         raise ValueError(f"State is not normalized: norm={norm:.12f}")
 
 
+def density_matrix(state: np.ndarray) -> np.ndarray:
+    assert_normalized(state)
+    return np.outer(state, state.conj())
+
+
+def add_visibility_noise(rho: np.ndarray, visibility: float) -> np.ndarray:
+    if not 0.0 <= visibility <= 1.0:
+        raise ValueError("visibility must be between 0 and 1.")
+    return visibility * rho + (1.0 - visibility) * np.eye(4, dtype=complex) / 4.0
+
+
 def polarization_basis(theta_rad: float) -> tuple[np.ndarray, np.ndarray]:
     plus = np.array([np.cos(theta_rad), np.sin(theta_rad)], dtype=complex)
     minus = np.array([-np.sin(theta_rad), np.cos(theta_rad)], dtype=complex)
@@ -114,13 +126,15 @@ def polarization_basis(theta_rad: float) -> tuple[np.ndarray, np.ndarray]:
 
 
 def joint_probabilities(
-    state: np.ndarray,
+    rho: np.ndarray,
     theta_a_deg: float,
     theta_b_deg: float,
     tolerance: float = 1e-10,
 ) -> Dict[str, float]:
     """Return P(++), P(+-), P(-+), P(--) for polarization measurements."""
-    assert_normalized(state, tolerance=tolerance)
+    trace = float(np.trace(rho).real)
+    if abs(trace - 1.0) > tolerance:
+        raise ValueError(f"Density matrix is not normalized: trace={trace:.12f}")
 
     theta_a = radians(theta_a_deg)
     theta_b = radians(theta_b_deg)
@@ -134,7 +148,7 @@ def joint_probabilities(
         "--": np.kron(minus_a, minus_b),
     }
     probabilities = {
-        outcome: float(abs(np.vdot(projector, state)) ** 2)
+        outcome: float(np.vdot(projector, rho @ projector).real)
         for outcome, projector in projectors.items()
     }
     total = sum(probabilities.values())
@@ -169,14 +183,14 @@ def sample_counts(
 
 
 def measure_pair(
-    state: np.ndarray,
+    rho: np.ndarray,
     pair: str,
     theta_a_deg: float,
     theta_b_deg: float,
     shots: int,
     rng: np.random.Generator,
 ) -> MeasurementResult:
-    probabilities = joint_probabilities(state, theta_a_deg, theta_b_deg)
+    probabilities = joint_probabilities(rho, theta_a_deg, theta_b_deg)
     counts = sample_counts(probabilities, shots, rng)
     return MeasurementResult(
         pair=pair,
@@ -199,6 +213,7 @@ def run_chsh(
     seed: int | None = 42,
     angles: Mapping[str, float] | None = None,
     bell: str = "phi_plus",
+    visibility: float = 1.0,
 ) -> ChshResult:
     """Run the default CHSH experiment for a selected Bell state."""
     selected_angles = dict(default_chsh_angles() if angles is None else angles)
@@ -208,6 +223,7 @@ def run_chsh(
         raise ValueError(f"Missing CHSH angle labels: {sorted(missing)}")
 
     state = prepare_bell_state(bell)
+    rho = add_visibility_noise(density_matrix(state), visibility)
     rng = np.random.default_rng(seed)
     pairs = (
         ("a_b", selected_angles["a"], selected_angles["b"]),
@@ -216,7 +232,7 @@ def run_chsh(
         ("ap_bp", selected_angles["ap"], selected_angles["bp"]),
     )
     measurements = tuple(
-        measure_pair(state, pair, theta_a, theta_b, shots, rng)
+        measure_pair(rho, pair, theta_a, theta_b, shots, rng)
         for pair, theta_a, theta_b in pairs
     )
     by_pair = {measurement.pair: measurement.e_sim for measurement in measurements}
@@ -232,6 +248,7 @@ def run_chsh(
     )
     return ChshResult(
         bell_state=bell,
+        visibility=visibility,
         shots=shots,
         seed=seed,
         measurements=measurements,
@@ -244,6 +261,7 @@ def run_convergence(
     shot_values: Iterable[int],
     seed: int | None = 42,
     bell: str = "phi_plus",
+    visibility: float = 1.0,
 ) -> tuple[ChshResult, ...]:
     """Run CHSH experiments for multiple shot counts with deterministic seeds."""
     shot_values = tuple(shot_values)
@@ -252,7 +270,14 @@ def run_convergence(
     results = []
     for shots, child_sequence in zip(shot_values, child_sequences):
         child_seed = int(child_sequence.generate_state(1)[0])
-        results.append(run_chsh(shots=shots, seed=child_seed, bell=bell))
+        results.append(
+            run_chsh(
+                shots=shots,
+                seed=child_seed,
+                bell=bell,
+                visibility=visibility,
+            )
+        )
     return tuple(results)
 
 
@@ -263,6 +288,7 @@ def run_angle_scan(
     shots: int = 5000,
     seed: int | None = 42,
     bell: str = "phi_plus",
+    visibility: float = 1.0,
 ) -> tuple[AngleScanResult, ...]:
     """Scan CHSH with a=0, a'=45, b=theta, b'=-theta."""
     if points < 2:
@@ -278,7 +304,37 @@ def run_angle_scan(
             shots=shots,
             seed=child_seed,
             bell=bell,
+            visibility=visibility,
             angles={"a": 0.0, "ap": 45.0, "b": float(theta), "bp": -float(theta)},
         )
         results.append(AngleScanResult(theta_deg=float(theta), result=chsh_result))
+    return tuple(results)
+
+
+def run_noise_scan(
+    start: float = 0.0,
+    stop: float = 1.0,
+    points: int = 101,
+    shots: int = 5000,
+    seed: int | None = 42,
+    bell: str = "phi_plus",
+) -> tuple[ChshResult, ...]:
+    """Scan CHSH as the Bell state is mixed with white noise."""
+    if points < 2:
+        raise ValueError("noise scan needs at least two points.")
+    visibility_values = np.linspace(start, stop, points)
+    seed_sequence = np.random.SeedSequence(seed)
+    child_sequences = seed_sequence.spawn(points)
+
+    results = []
+    for visibility, child_sequence in zip(visibility_values, child_sequences):
+        child_seed = int(child_sequence.generate_state(1)[0])
+        results.append(
+            run_chsh(
+                shots=shots,
+                seed=child_seed,
+                bell=bell,
+                visibility=float(visibility),
+            )
+        )
     return tuple(results)
