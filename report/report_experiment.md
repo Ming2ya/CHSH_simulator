@@ -1,35 +1,5 @@
 # 实验部分：代码实现与结果分析
 
-## 1. 源码审查结论
-
-本项目核心代码位于 `src/chsh.py` 和 `src/main.py`。经审查，主线流程是完整且自洽的：程序先制备 Bell 态，再构造密度矩阵，随后根据偏振测量基计算联合测量概率，最后通过 Monte Carlo 抽样得到关联期望值并计算 CHSH 参数。核心物理约定也保持一致：程序采用偏振光子测量基
-
-\[
-|+_\theta\rangle=\cos\theta|0\rangle+\sin\theta|1\rangle,
-\quad
-|-_\theta\rangle=-\sin\theta|0\rangle+\cos\theta|1\rangle .
-\]
-
-因此对 \(|\Phi^+\rangle\)，理论关联函数为
-
-\[
-E(\theta_A,\theta_B)=\cos 2(\theta_A-\theta_B),
-\]
-
-对应最优 CHSH 角度为 \(a=0^\circ, a'=45^\circ, b=22.5^\circ, b'=-22.5^\circ\)。这一点在代码、实验结果和理论分析中是一致的，未发现会影响主线结论的物理逻辑错误。
-
-需要注意的实现细节有三点。第一，当前 `src/main.py` 使用 `from src.chsh import ...`，因此推荐在项目根目录下以模块方式运行：
-
-```bash
-python -m src.main --shots 10000 --seed 42
-```
-
-若直接运行 `python src/main.py`，在部分环境中会因导入路径问题报错。第二，当前绘图函数对默认实验最适用；如果切换到其他 Bell 态或非默认 visibility，`plot_convergence`、`plot_noise_scan` 中的参考线最好改为当前实验的 `S_theory` 或绘制 \(|S|\)，否则图注可能不够准确。第三，若连续对四个 Bell 态做角度扫描，当前 `main.py` 的默认输出文件名会被覆盖，建议将 Bell 态名称加入输出文件名，或在运行后手动重命名。
-
-总体而言，这些问题属于运行方式和展示层面的改进建议，不影响 `src/chsh.py` 中 Bell 态制备、测量概率、Monte Carlo 采样和 CHSH 计算的主线正确性。
-
----
-
 ## 2. 代码实现方式
 
 ### 2.1 Bell 态制备
