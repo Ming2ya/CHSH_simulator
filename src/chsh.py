@@ -125,6 +125,41 @@ def polarization_basis(theta_rad: float) -> tuple[np.ndarray, np.ndarray]:
     return plus, minus
 
 
+def measurement_projector(theta_deg: float, outcome: str, qubit: int) -> np.ndarray:
+    theta = radians(theta_deg)
+    plus, minus = polarization_basis(theta)
+    basis_vector = plus if outcome == "+" else minus
+    one_qubit_projector = np.outer(basis_vector, basis_vector.conj())
+    identity = np.eye(2, dtype=complex)
+    if qubit == 0:
+        return np.kron(one_qubit_projector, identity)
+    return np.kron(identity, one_qubit_projector)
+
+
+def measure_with_projectors(
+    rho: np.ndarray,
+    plus_projector: np.ndarray,
+    minus_projector: np.ndarray,
+    rng: np.random.Generator,
+) -> tuple[str, np.ndarray]:
+    p_plus = float(np.trace(plus_projector @ rho).real)
+    p_plus = min(max(p_plus, 0.0), 1.0)
+
+    if rng.random() < p_plus:
+        outcome = "+"
+        projector = plus_projector
+        probability = p_plus
+    else:
+        outcome = "-"
+        projector = minus_projector
+        probability = 1.0 - p_plus
+
+    if probability <= 1e-12:
+        return outcome, rho
+    updated_rho = projector @ rho @ projector / probability
+    return outcome, updated_rho
+
+
 def joint_probabilities(
     rho: np.ndarray,
     theta_a_deg: float,
@@ -169,17 +204,30 @@ def expectation_from_distribution(distribution: Mapping[str, float | int]) -> fl
     return (same - different) / total
 
 
-def sample_counts(
-    probabilities: Mapping[str, float],
+def simulate_counts(
+    rho: np.ndarray,
+    theta_a_deg: float,
+    theta_b_deg: float,
     shots: int,
     rng: np.random.Generator,
 ) -> Dict[str, int]:
     if shots <= 0:
         raise ValueError("shots must be a positive integer.")
 
-    probability_vector = np.array([probabilities[outcome] for outcome in OUTCOMES])
-    sampled = rng.multinomial(shots, probability_vector)
-    return {outcome: int(count) for outcome, count in zip(OUTCOMES, sampled)}
+    counts = {outcome: 0 for outcome in OUTCOMES}
+    alice_plus = measurement_projector(theta_a_deg, "+", 0)
+    alice_minus = measurement_projector(theta_a_deg, "-", 0)
+    bob_plus = measurement_projector(theta_b_deg, "+", 1)
+    bob_minus = measurement_projector(theta_b_deg, "-", 1)
+
+    for _ in range(shots):
+        shot_rho = rho.copy()
+        alice, shot_rho = measure_with_projectors(
+            shot_rho, alice_plus, alice_minus, rng
+        )
+        bob, _ = measure_with_projectors(shot_rho, bob_plus, bob_minus, rng)
+        counts[alice + bob] += 1
+    return counts
 
 
 def measure_pair(
@@ -191,7 +239,7 @@ def measure_pair(
     rng: np.random.Generator,
 ) -> MeasurementResult:
     probabilities = joint_probabilities(rho, theta_a_deg, theta_b_deg)
-    counts = sample_counts(probabilities, shots, rng)
+    counts = simulate_counts(rho, theta_a_deg, theta_b_deg, shots, rng)
     return MeasurementResult(
         pair=pair,
         theta_a_deg=theta_a_deg,

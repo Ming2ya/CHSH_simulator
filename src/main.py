@@ -38,7 +38,7 @@ def parse_shot_list(raw: str) -> tuple[int, ...]:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Monte Carlo CHSH verification for the |Phi+> Bell state."
+        description="Monte Carlo CHSH verification for Bell states."
     )
     parser.add_argument("--shots", type=int, default=10000)
     parser.add_argument("--seed", type=int, default=42)
