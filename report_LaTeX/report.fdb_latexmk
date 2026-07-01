@@ -1,17 +1,16 @@
 # Fdb version 4
-["xdvipdfmx"] 1782718931.50966 "report.xdv" "report.pdf" "report" 1782718932.24481 0
-  "report.xdv" 1782718931.45678 145756 876170aab5dc1bdcbc188c736489e6dd "xelatex"
+["xdvipdfmx"] 1782908204.17101 "report.xdv" "report.pdf" "report" 1782908206.07283 0
+  "report.xdv" 1782908204.07009 145736 88a902de2519ad84a8d70fceab128e5a "xelatex"
   (generated)
   "report.pdf"
   (rewritten before read)
-["xelatex"] 1782718930.65154 "/Users/mingya/Documents/quantum/report_LaTeX/report.tex" "report.xdv" "report" 1782718932.24375 0
+["xelatex"] 1782908202.69642 "report.tex" "report.xdv" "report" 1782908206.07117 0
   "../figures/chsh_mvp_convergence.png" 1781788510.36228 55286 93c892f8de9d5d97fdfd6b1b8df5ce75 ""
   "../figures/chsh_noise_scan.png" 1781788528.94086 89668 9d6d545a4d2d1cc357a60ed5d6149092 ""
   "../figures/phi_minus_angle_scan.png" 1781788338.91964 104813 6415924e62a6f951c2efac3bd7f252e8 ""
   "../figures/phi_plus_angle_scan.png" 1781788283.51516 102283 7ae1bac87312a83dbcca579fbdbbed77 ""
   "../figures/psi_minus_angle_scan.png" 1781788448.12065 103874 a1fac5ae745d8c59e6a68701b73df7ce ""
   "../figures/psi_plus_angle_scan.png" 1781788391.80343 101665 2eb06e59e68ecd0b62a33dd5e9443671 ""
-  "/Users/mingya/Documents/quantum/report_LaTeX/report.tex" 1782718929.40675 19979 6a7e454ab5d48629643d971a2d8d1bc5 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/local/texlive/2026/texmf-dist/fonts/tfm/adobe/zapfding/pzdr.tfm" 1136768653 1528 f853c4d1b4e0550255e02831fdc8496f ""
   "/usr/local/texlive/2026/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmex7.tfm" 1246382020 1004 54797486969f23fa377b128694d548df ""
@@ -113,10 +112,10 @@
   "/usr/local/texlive/2026/texmf-var/web2c/xetex/xelatex.fmt" 1782291056 5948569 e534ae6dec234b32cf25d953ab632d1c ""
   "/usr/local/texlive/2026/texmf.cnf" 1774209515 577 648cd9f92f9c0eac486f4c71c85cfbbe ""
   "figures/cover.png" 1782715652.31356 47937 e4b98b4c1347b392e309db9d61db07cf ""
-  "report.aux" 1782718931.45551 8048 c4276ab6ea8eb2007e3710d01127b69c "xelatex"
-  "report.out" 1782718931.45636 3188 5326309c6d8594bb80c5366e051f7de1 "xelatex"
-  "report.tex" 1782718929.40675 19979 6a7e454ab5d48629643d971a2d8d1bc5 ""
-  "report.toc" 1782718931.45664 2556 ded317149b6c81adb7b40bcc6f9fd2c0 "xelatex"
+  "report.aux" 1782908204.06796 8048 c4276ab6ea8eb2007e3710d01127b69c "xelatex"
+  "report.out" 1782908204.06938 3188 5326309c6d8594bb80c5366e051f7de1 "xelatex"
+  "report.tex" 1782908175.11103 19987 b6925a09e2375d76426edcb62b61d9b4 ""
+  "report.toc" 1782908204.06985 2556 ded317149b6c81adb7b40bcc6f9fd2c0 "xelatex"
   "zjureport.cls" 1782715652.32605 5403 73a099028f9b5200314b8c02631b437e ""
   (generated)
   "report.aux"

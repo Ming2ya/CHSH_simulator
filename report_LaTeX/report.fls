@@ -2,7 +2,7 @@ PWD /Users/mingya/Documents/quantum/report_LaTeX
 INPUT /usr/local/texlive/2026/texmf.cnf
 INPUT /usr/local/texlive/2026/texmf-dist/web2c/texmf.cnf
 INPUT /usr/local/texlive/2026/texmf-var/web2c/xetex/xelatex.fmt
-INPUT /Users/mingya/Documents/quantum/report_LaTeX/report.tex
+INPUT report.tex
 OUTPUT report.log
 INPUT ./zjureport.cls
 INPUT zjureport.cls

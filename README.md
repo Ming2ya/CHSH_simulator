@@ -9,7 +9,7 @@
 ├── src/
 │   ├── chsh.py          # 核心物理计算与 Monte Carlo 抽样
 │   └── main.py          # 命令行入口、CSV 输出和绘图
-├── report/              # Markdown 报告草稿
+├── report_LaTeX/        # LaTeX 报告与最终 PDF
 ├── results/             # CSV 实验结果
 ├── figures/             # 实验图像
 ├── requirements.txt
@@ -43,7 +43,7 @@ a = 0 deg, a' = 45 deg, b = 22.5 deg, b' = -22.5 deg
 一次典型输出为：
 
 ```text
-S_sim    = 2.821400
+S_sim    = 2.842800
 S_theory = 2.828427
 ```
 
@@ -116,4 +116,3 @@ figures/phi_minus_angle_scan.png
 figures/psi_plus_angle_scan.png
 figures/psi_minus_angle_scan.png
 ```
-
