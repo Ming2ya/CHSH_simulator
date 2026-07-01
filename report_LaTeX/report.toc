@@ -1,0 +1,31 @@
+\contentsline {section}{摘要}{4}{Doc-Start}%
+\contentsline {section}{\numberline {\CJKnumber {1}、}引言}{4}{section.1}%
+\contentsline {subsection}{\numberline {1.1}研究背景}{4}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}实验目标}{4}{subsection.1.2}%
+\contentsline {section}{\numberline {\CJKnumber {2}、}CHSH 实验原理}{5}{section.2}%
+\contentsline {subsection}{\numberline {2.1}实验设置}{5}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}关联函数 \(E\)}{5}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}CHSH 参数 \(S\)}{6}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}经典上界的推导}{6}{subsection.2.4}%
+\contentsline {subsection}{\numberline {2.5}量子力学预言}{7}{subsection.2.5}%
+\contentsline {section}{\numberline {\CJKnumber {3}、}量子模型与测量约定}{8}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Bell 态}{8}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}偏振测量基}{8}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}visibility 噪声模型}{9}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}仿真中的测量约定}{9}{subsection.3.4}%
+\contentsline {section}{\numberline {\CJKnumber {4}、}程序实现}{11}{section.4}%
+\contentsline {subsection}{\numberline {4.1}实现流程}{11}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}逐 shot 投影测量}{11}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}实验设计}{12}{subsection.4.3}%
+\contentsline {section}{\numberline {\CJKnumber {5}、}实验结果与分析}{13}{section.5}%
+\contentsline {subsection}{\numberline {5.1}默认 CHSH 实验}{13}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}shots 收敛实验}{13}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}四个 Bell 态的比较}{14}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}角度扫描实验}{15}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}噪声扫描实验}{17}{subsection.5.5}%
+\contentsline {section}{\numberline {\CJKnumber {6}、}仿真方法讨论}{19}{section.6}%
+\contentsline {subsection}{\numberline {6.1}联合概率抽样方法的不足}{19}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}逐 shot 投影测量方法的优势}{19}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}当前方法的局限性}{19}{subsection.6.3}%
+\contentsline {section}{\numberline {\CJKnumber {7}、}总结}{20}{section.7}%
+\contentsfinish 
