@@ -9,7 +9,6 @@
 ├── src/
 │   ├── chsh.py          # 核心物理计算与 Monte Carlo 抽样
 │   └── main.py          # 命令行入口、CSV 输出和绘图
-├── report_LaTeX/        # LaTeX 报告与最终 PDF
 ├── results/             # CSV 实验结果
 ├── figures/             # 实验图像
 ├── requirements.txt
